@@ -47,3 +47,9 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+#inputs data (too heavy)
+inputs/
+
+#maxent software
+maxent.jar
