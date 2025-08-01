@@ -2,6 +2,7 @@ library(terra)
 library(sf)
 library(tidyverse)
 library(ncdf4)
+library(furrr)
 
 # Function to aggregate each model raster to 12 monthly means
 collapse_to_monthly_climatology <- function(r_model) {
@@ -96,8 +97,10 @@ for(i in seq_along(clim.files)) {
   
   cat('Calculating monthly means\n')
   # Apply to all models
-  r.monthly.by.model <- map(r.list, collapse_to_monthly_climatology)
-  
+  plan(multisession, workers = 4)
+  # r.monthly.by.model <- map(r.list, collapse_to_monthly_climatology)
+  r.monthly.by.model <- future_map(r.list, collapse_to_monthly_climatology)
+  plan(sequential)
   
   cat('Combining means and models\n')
   # Combine all into a single stack
