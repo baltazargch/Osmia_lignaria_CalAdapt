@@ -58,6 +58,7 @@ multidict==6.1.0
 narwhals==1.41.1
 netCDF4==1.7.2
 networkx==3.5
+numba==0.60.0
 numcodecs==0.14.1
 numpy==2.0.2
 packaging==24.2

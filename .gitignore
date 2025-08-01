@@ -50,6 +50,10 @@ rsconnect/
 
 #inputs data (too heavy)
 inputs/
+#climate data
+outputs/monthly_climates/  
 
 #maxent software
 maxent.jar
+
+
