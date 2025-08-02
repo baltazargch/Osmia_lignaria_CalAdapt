@@ -46,9 +46,9 @@ case_list <- split(table_cases, table_cases$case)
 # Loop through each case
 bio_list <- map(case_list, \(case_df) {
   message("Processing: ", unique(case_df$case))
-  
+  case_df <- case_list[[1]]
   # Read rasters in correct order
-  fls <- case_df %>% arrange(match(vars, vars)) %>% pull(fln)
+  fls <- case_df %>% arrange(match(vars, vars)) %>% pull(fln) %>% unique()
   prec <- rast(fls[1])
   tmin <- rast(fls[2])
   tmax <- rast(fls[3])

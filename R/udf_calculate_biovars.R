@@ -50,8 +50,6 @@ terra_biovars <- function(prec, tmin, tmax) {
     extract_by_index(qprec_stack, idx)
   }
   
-  
-  
   tavg <- (tmin + tmax) / 2
   
   # BIO1: Annual Mean Temperature
