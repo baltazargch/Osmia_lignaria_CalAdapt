@@ -13,7 +13,7 @@ collapse_to_monthly_climatology <- function(r_model) {
   monthly_means <- map(month.abb, function(mon) {
     idx <- which(month_labels == mon)
     if (length(idx) > 0) {
-      mean(r_model[[idx]], na.rm = TRUE)
+      mean(round(r_model[[idx]], 2), na.rm = TRUE)
     } else {
       NA
     }
@@ -35,13 +35,8 @@ clim.files <- list.files('inputs/climates', '.nc$', full.names=T)
 
 dir.create('outputs/monthly_climates', recursive = TRUE, showWarnings = FALSE)
 
-# set parallel tunning
-n_cores <- 6
-cl <- makeCluster(n_cores)
-registerDoParallel(cl)
-
 foreach(i = seq_along(clim.files), 
-        .packages = c('terra', 'sf', 'tidyverse', 'ncdf4')) %dopar% {
+        .packages = c('terra', 'sf', 'tidyverse', 'ncdf4')) %do% {
           # for(i in seq_along(clim.files)) {
           # for(i in 1:2) {
           # i = 2
@@ -68,6 +63,8 @@ foreach(i = seq_along(clim.files),
           if(file.exists(paste0('outputs/monthly_climates/', out.name.var, '.tif'))) {
             cat(paste0(out.name.var, ' already saved\n'))
             return(NULL)
+          } else {
+            print(paste0('Processing ', out.name.var))
           }
           
           num.years <- diff(year.range)+ 1
@@ -118,4 +115,4 @@ foreach(i = seq_along(clim.files),
           cat('Writing means and models\n')
           writeRaster(rast(r_all), paste0('outputs/monthly_climates/', out.name.var, '.tif'))
         }
-stopCluster(cl)
+
