@@ -8,7 +8,7 @@ library(tidyterra)
 library(ggspatial)
 
 sf_use_s2(F)
-source('R/udf_scalebar_from_ggsn.R')
+
 
 db <- fread('/mnt/4TB/Databases/GBIF/Megachilidae/0037393-240906103802322.csv')
 ne_pol <- read_sf('/mnt/4TB/GIS/Vectors/NaturalEarth/10m_cultural/ne_10m_admin_0_countries.shp')
