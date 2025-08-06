@@ -5,23 +5,26 @@ library(tidyverse)
 # Load your custom biovar calculator using terra
 source('R/udf_calculate_biovars.R')  # this should define `terra_biovars()`
 
-#===============================
-# PARAMETERS
-#===============================
+#===============================#
+# PARAMETERS                    #
+#===============================#
 
 # General climate model setup
 models <- c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")
 
 # Time periods and scenarios
-periods <- c('2000_2020', '2021_2040', '2041_2060', '2061_2080', '2081_2100')
+periods <- c('1950-2014', 
+             '2015-2044', 
+             '2045-2074', 
+             '2075-2100')
 ssp <- c('historical', 'ssp245', 'ssp370', 'ssp585')
 
 # Required variables
 vars <- c('pr', 'tasmin', 'tasmax')
 
 # Input/output directories
-input_dir <- 'outputs/monthly_climates'
-output_dir <- 'outputs/bioclim_vars'
+input_dir <- 'outputs/NAmonthly_climates'
+output_dir <- 'outputs/NA_bioclim_vars'
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 #===============================
@@ -29,29 +32,35 @@ dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 #===============================
 
 # Build case table for each variable × period × scenario
-table_cases <- expand_grid(vars, periods, ssp) %>% 
-  mutate(
-    periods = ifelse(ssp == 'historical', '2000_2014', periods),
-    case = str_c(periods, '_', ssp),
-    fln = str_c(input_dir, '/', vars, '_', case, '.tif')
-  )
+table_cases <- expand_grid(models, vars, periods, ssp) %>% 
+  filter((ssp == "historical" & periods == "1950-2014") |
+           (ssp != "historical" & periods != "1950-2014")) %>% 
+  mutate(case = str_c(periods, '_', ssp)) %>% 
+  mutate(fln = str_c(vars, case, sep = '_') %>% str_replace('-', '_') %>% 
+           str_c(., '.tif'))
 
 # Split into list of cases: each element corresponds to one time slice + SSP
 case_list <- split(table_cases, table_cases$case)
 
-#===============================
-# CALCULATE BIOVARS
-#===============================
+#Load files names
+fls <- list.files('outputs/NAmonthly_climates/', 
+                  '.tif', full.names = T)
+#===============================#
+# CALCULATE BIOVARS             #
+#===============================#
 
 # Loop through each case
 bio_list <- map(case_list, \(case_df) {
   message("Processing: ", unique(case_df$case))
-  case_df <- case_list[[1]]
+
+  # case_df <- case_list[[1]]
+  
   # Read rasters in correct order
   fls <- case_df %>% arrange(match(vars, vars)) %>% pull(fln) %>% unique()
-  prec <- rast(fls[1])
-  tmin <- rast(fls[2])
-  tmax <- rast(fls[3])
+
+  prec <- rast(str_c(input_dir,'/', fls[1]))
+  tmin <- rast(str_c(input_dir,'/', fls[2]))
+  tmax <- rast(str_c(input_dir,'/', fls[3]))
   
   # Compute biovars for each model slice
   biovars_by_model <- map(models, \(m) {

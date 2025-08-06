@@ -5,15 +5,39 @@ library(ncdf4)
 library(foreach)
 library(doParallel)
 
-# Function to aggregate each model raster to 12 monthly means
-collapse_to_monthly_climatology <- function(r_model) {
+
+# Function to aggregate each model raster to 12 monthly means and convert units
+collapse_to_monthly_climatology <- function(r_model, var) {
+  # r_model = r_mm
   # Extract month names from layer names
   month_labels <- str_extract(names(r_model), "(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)")
   
   monthly_means <- map(month.abb, function(mon) {
     idx <- which(month_labels == mon)
+    # Define seconds in each month (non-leap year) to convert units
+    seconds_in_month <- c(
+      Jan = 2678400,
+      Feb = 2419200,
+      Mar = 2678400,
+      Apr = 2592000,
+      May = 2678400,
+      Jun = 2592000,
+      Jul = 2678400,
+      Aug = 2678400,
+      Sep = 2592000,
+      Oct = 2678400,
+      Nov = 2592000,
+      Dec = 2678400
+    )
+    # Match to seconds in month
+    seconds_vec <- seconds_in_month[mon]
+    
     if (length(idx) > 0) {
-      mean(round(r_model[[idx]], 2), na.rm = TRUE)
+      if(var == 'pr') {
+        mean(round(r_model[[idx]] * seconds_vec, 2), na.rm = TRUE)
+      } else {
+        mean(round(r_model[[idx]],  2), na.rm = TRUE)- 273.15
+      }
     } else {
       NA
     }
@@ -25,42 +49,61 @@ collapse_to_monthly_climatology <- function(r_model) {
 }
 
 # Target models and parameters
-modelsIN = c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")
+models= c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")
 
+# Time periods and scenarios
+periods <- c('1950-2014', 
+             '2015-2044', 
+             '2045-2074', 
+             '2075-2100')
+ssp <- c('historical', 'ssp245', 'ssp370', 'ssp585')
+
+# Required variables
+vars <- c('pr', 'tasmin', 'tasmax')
+
+# Build case table for each variable × period × scenario
+table_cases <- expand_grid(models, vars, periods, ssp) %>% 
+  filter((ssp == "historical" & periods == "1950-2014") |
+           (ssp != "historical" & periods != "1950-2014")) %>% 
+  mutate(case = str_c(vars, '_', periods, '_', ssp))
+
+case_list <- table_cases %>% split(table_cases$case)
 # get files names and prepare output directories
-clim.files <- list.files('inputs/climates', '.nc$', full.names=T) 
+clim.files <- list.files('inputs/NAclim/', '.nc$', full.names=T) 
+
 
 # # get baseline time and models 
 # hist <- clim.files[ grep('historical', clim.files) ]
 
-dir.create('outputs/monthly_climates', recursive = TRUE, showWarnings = FALSE)
+dir.create('outputs/NAmonthly_climates', recursive = TRUE, showWarnings = FALSE)
 
-foreach(i = seq_along(clim.files), 
+foreach(i = seq_along(case_list), 
         .packages = c('terra', 'sf', 'tidyverse', 'ncdf4')) %do% {
           # for(i in seq_along(clim.files)) {
           # for(i in 1:2) {
           # i = 2
           # load rasters
-          r <- rast(clim.files[i])
+          # i=11
+          case <- case_list[[i]]
+          
+          filters <- unique(c(case$vars, case$periods, case$ssp))
+          rastfls <- Reduce(function(x, pattern) x[str_detect(x, pattern)], filters, init = clim.files)
+          r <- rast(rastfls)
           
           # Determine variable name from filename
-          out.name.var <- case_when(
-            str_detect(clim.files[i], "pr_") ~ "pr",
-            str_detect(clim.files[i], "tasmax_") ~ "tasmax",
-            TRUE ~ "tasmin"
-          )
+          out.name.var <- case$vars %>% unique()
           
           # Get actual year range from raster time dimension
           year.range <- time(r) %>%
-            as_date(origin = "2000-01-01") %>%  # If time is in numeric days since 2000-01-01
+            as_date(origin = "1950-01-01") %>%  # If time is in numeric days since 2000-01-01
             year() %>%
             range()
           
           # Combine var + year range (e.g., "tasmax_2000_2020")
           out.name.var <- paste0(out.name.var, "_", str_c(year.range, collapse = "_"), 
-                                 '_', str_extract(clim.files[i], "(ssp\\d+|historical)") )
+                                 '_', case$ssp[1])
           
-          if(file.exists(paste0('outputs/monthly_climates/', out.name.var, '.tif'))) {
+          if(file.exists(paste0('outputs/NAmonthly_climates/', out.name.var, '.tif'))) {
             cat(paste0(out.name.var, ' already saved\n'))
             return(NULL)
           } else {
@@ -69,19 +112,15 @@ foreach(i = seq_along(clim.files),
           
           num.years <- diff(year.range)+ 1
           
-          nc <- nc_open(clim.files[i])
+          stopifnot(nlyr(r) == length(models) * num.years * 12)
           
-          model.names <- ncvar_get( nc, 'simulation' )
-          
-          stopifnot(nlyr(r) == length(model.names) * num.years * 12)
-          
-          names.vec <- rep(model.names, each = num.years * 12)
+          names.vec <- rep(models, each = num.years * 12)
           
           times.vec <- time(r) %>%
             month(label = TRUE, abbr = TRUE) %>%
             as.character()
           
-          names(r) <- str_c(names.vec, times.vec, sep = '_') 
+          names(r) <- str_c(names.vec, times.vec, sep = '_')
           
           # Split model and month from layer names
           layer_names <- names(r)
@@ -91,28 +130,25 @@ foreach(i = seq_along(clim.files),
           # Check structure
           # table(model_names, month_names)
           
-          # Create list of rasters per model
-          model_list <- modelsIN
-          r.list <- setNames(vector("list", length(model_list)), model_list)
-          
-          cat(' Splitting by model name\n')
-          for (m in model_list) {
-            r.list[[m]] <- r[[grep(m, names(r))]]
-          }
-          
           cat('Calculating monthly means\n')
           # Apply to all models
+          r.list <- split(r, model_names)
+          r.monthly.by.model <- map(r.list, 
+                                    ~collapse_to_monthly_climatology(.x,  case$vars %>% unique()))
           
-          # r.monthly.by.model <- map(r.list, collapse_to_monthly_climatology)
-          r.monthly.by.model <- map(r.list, collapse_to_monthly_climatology)
-          
-          
-          cat('Combining means and models\n')
-          # Combine all into a single stack
-          r_all <- do.call(c, r.monthly.by.model)
-          
+          names(r.monthly.by.model) <- unique(model_names)
+          r.monthly.by.model <- r.monthly.by.model %>% imap(\(x,n) {
+            names(x) <- str_c(n, '_', names(x)) 
+            x
+          })
+          r_all <- rast(r.monthly.by.model)
+          names(r_all) <- str_replace(
+            names(r_all),
+            "_(\\d{1,2})$",
+            \(x) paste0("_", month.abb[as.integer(str_extract(x, "\\d+"))])
+          )
           
           cat('Writing means and models\n')
-          writeRaster(rast(r_all), paste0('outputs/monthly_climates/', out.name.var, '.tif'))
+          writeRaster(r_all, paste0('outputs/NAmonthly_climates/', out.name.var, '.tif'))
         }
 
