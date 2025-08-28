@@ -13,18 +13,20 @@ source('R/udf_calculate_biovars.R')  # this should define `terra_biovars()`
 models <- c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")
 
 # Time periods and scenarios
-periods <- c('1950-2014', 
-             '2015-2044', 
-             '2045-2074', 
-             '2075-2100')
+# periods <- c('1950-2014', '2015-2044', '2045-2074', '2075-2100')
+periods <- c('2000_2014', '2000_2020', '2021_2040', 
+             '2041_2060', '2061_2080', '2081_2100')
 ssp <- c('historical', 'ssp245', 'ssp370', 'ssp585')
 
 # Required variables
 vars <- c('pr', 'tasmin', 'tasmax')
 
-# Input/output directories
-input_dir <- 'outputs/NAmonthly_climates'
-output_dir <- 'outputs/NA_bioclim_vars'
+# Input/output directories. Adjusto to NA or CA
+# input_dir <- 'outputs/NAmonthly_climates'
+# output_dir <- 'outputs/NA_bioclim_vars'
+input_dir <- 'outputs/monthly_climates'
+output_dir <- 'outputs/bioclim_vars'
+
 dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 
 #===============================
@@ -35,6 +37,8 @@ dir.create(output_dir, showWarnings = FALSE, recursive = TRUE)
 table_cases <- expand_grid(models, vars, periods, ssp) %>% 
   filter((ssp == "historical" & periods == "1950-2014") |
            (ssp != "historical" & periods != "1950-2014")) %>% 
+mutate(ssp = ifelse(periods == '2000_2014', 'historical', ssp)) %>% 
+  distinct(.) %>% 
   mutate(case = str_c(periods, '_', ssp)) %>% 
   mutate(fln = str_c(vars, case, sep = '_') %>% str_replace('-', '_') %>% 
            str_c(., '.tif'))
@@ -43,7 +47,7 @@ table_cases <- expand_grid(models, vars, periods, ssp) %>%
 case_list <- split(table_cases, table_cases$case)
 
 #Load files names
-fls <- list.files('outputs/NAmonthly_climates/', 
+fls <- list.files('outputs/monthly_climates/', 
                   '.tif', full.names = T)
 #===============================#
 # CALCULATE BIOVARS             #
@@ -64,6 +68,7 @@ bio_list <- map(case_list, \(case_df) {
   
   # Compute biovars for each model slice
   biovars_by_model <- map(models, \(m) {
+    # m <- models[[2]]
     idx <- grep(m, names(prec))
     if (length(idx) != 12) {
       warning("Model ", m, " does not have 12 months; skipping.")
@@ -73,13 +78,13 @@ bio_list <- map(case_list, \(case_df) {
   })
   
   names(biovars_by_model) <- models
+  # plot(biovars_by_model[[4]])
   return(biovars_by_model)
 })
 
 #===============================
 # WRITE OUTPUTS
 #===============================
-
 # Flatten and write
 walk2(names(bio_list), bio_list, \(casename, model_stack) {
   walk2(names(model_stack), model_stack, \(model_name, ras) {

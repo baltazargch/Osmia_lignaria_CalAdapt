@@ -104,7 +104,7 @@ plot(osmia_bg)
 set.seed(1234567)
 olig_w_bg <- sample_background(data = olig_pp, 
                                raster = osmia_bg,
-                               n = 5000,
+                               n = 10000,
                                method = "bias",
                                class_label = "background",
                                return_pres = TRUE) #%>% 
@@ -118,12 +118,12 @@ olig_w_bg <- sample_background(data = olig_pp,
 
 st_crs(olig_w_bg) <- 4326
 
-inland  <- extract(bio, olig_w_bg, cells=T)
+inland  <- terra::extract(bio, olig_w_bg, cells=T)
 olig_w_bg$inland <- !is.na(inland$bio1)
 
 olig_w_bg <- olig_w_bg %>% filter(inland)
 
-ppref_america <- project(ref_america, "EPSG:4269")
+ppref_america <- project(ref, "EPSG:4269")
 ppolig_w_bg <- st_transform(olig_w_bg, crs = 4269)
 
 
