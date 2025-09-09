@@ -8,8 +8,6 @@ wrld_org <- rnaturalearth::ne_states(country = 'united states of america',
 
 ca <- wrld_org %>% filter(name_en == 'California')
 
-
-
 #base layer to extend when plants are not in whole California
 r <-  rast("outputs/models/NA_osli_current_ensemble.tif") %>% 
   crop(ca, mask=T) / 1000
