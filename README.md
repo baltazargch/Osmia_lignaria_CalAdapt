@@ -21,13 +21,19 @@ We use species distribution modeling (SDM), climate projections (LOCA2), and eco
 
 ## 🗂 Repository Structure
 
+<details>
+  <summary><strong>Main structure</strong></summary>
+
+<pre>
 Osmia_lignaria_CalAdapt/
-├── inputs/              # Raw data: climate layers, species occurrences, trait datasets
-├── outputs/             # Model outputs, figures, tables, and reports
-├── R/                   # Custom R scripts and functions
-├── docs/                # Reports, appendices, manuscript drafts
-├── .github/             # Workflows and CI/CD setup
-└── README.md            # You are here ✨
+├── inputs/
+├── outputs/
+├── R/
+├── docs/
+├── .github/
+└── README.md
+</pre>
+</details>   
 
 ## ⚙️ Methods
 
@@ -51,8 +57,7 @@ Osmia_lignaria_CalAdapt/
 
 Prerequisites
 - R ≥ 4.3
-- Key packages:
-`r install.packages(c("terra", "sf", "tidyverse", "biomod2", "ENMeval", "rgbif"))`
+- Key packages: `install.packages(c("terra", "sf", "tidyverse", "biomod2", "ENMeval", "rgbif"))`
 
 ### Run the models
 
@@ -78,4 +83,4 @@ Author: Baltazar González Chávez
 Affiliation: University of California, Merced
 Email: bgonzalezchavez@ucmerced.edu
 
-# ✨ Let’s build knowledge for pollinator conservation in a changing climate.
+## ✨ Let’s build knowledge for pollinator conservation in a changing climate.
