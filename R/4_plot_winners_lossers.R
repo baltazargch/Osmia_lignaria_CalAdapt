@@ -65,7 +65,7 @@ ssp585a <- ssp585_2015 %>%
   ggplot(aes(x = change_bin, y = n_species, fill = Case)) +
   geom_col(position = "dodge") +
   # geom_vline(xintercept = 5, linetype = "dashed", color = "gray12") +
-  envalysis::theme_publish(base_size = 10) +
+  envalysis::theme_publish(base_size = 14) +
   ggsci::scale_fill_npg(alpha = 0.75)+
   labs(x = "% Change bin", y = "Number of species",  title = "SSP245 2075-2100") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
@@ -75,7 +75,7 @@ ssp585b <- ssp585_2075 %>%
   ggplot(aes(x = change_bin, y = n_species, fill = Case)) +
   geom_col(position = "dodge") +
   # geom_vline(xintercept = 5, linetype = "dashed", color = "gray12") +
-  envalysis::theme_publish(base_size = 10) +
+  envalysis::theme_publish(base_size = 14) +
   ggsci::scale_fill_npg(alpha = 0.75)+
   labs(x = "% Change bin", y = "Number of species",  title = "SSP585 2075-2100") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))

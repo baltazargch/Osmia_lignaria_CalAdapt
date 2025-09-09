@@ -1,0 +1,284 @@
+---
+title: "Appendix II. Full Species Distribution Models. California Climate Change Report"
+author: "Gaiarsa et al."
+date: "`r Sys.Date()`"
+always_allow_html: true
+output: 
+  word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(readr)
+library(flextable)
+library(officer)
+library(glue)
+
+# Flextable defaults for Word
+set_flextable_defaults(font.family = "sans", font.size = 10, theme_fun = theme_vanilla)
+
+# Small helpers
+fmt_num <- function(x, d = 3) formatC(x, format = "f", digits = d)
+ft_nice <- function(df, cap) {
+  flextable(df) |>
+    autofit() |>
+    align(align = "center", part = "all") |>
+    valign(valign = "center", part = "all") |>
+    add_header_lines(values = cap) |>
+    bold(i = 1, part = "header")
+}
+
+make_pair_plot <- function(r_path, ca, wrld, st_occs,
+                           title = "", subtitle = "") {
+  if (!file.exists(r_path)) {
+    message("File not found: ", r_path)
+    return(NULL)
+  }
+  
+  # r_path = path_i
+  # title = title_i
+  # subtitle = subtitle_i
+  # 
+  r <- terra::rast(r_path)
+  
+  modca <- crop(r, ca, mask=T)
+  
+  # NA/wider frame: just plot full raster extent with world overlay
+  p_na <- ggplot() +
+    tidyterra::geom_spatraster(data = r / 1000, interpolate = FALSE) +
+    geom_sf(data = wrld, fill = NA, color = "grey60", linewidth = 0.2) +
+    scale_fill_viridis_c(option = "H",
+                         name = "Suitability", na.value = NA,
+                         alpha = 0.8, direction = -1) +
+    # geom_sf(data = st_occs, shape = 20, size = 1.5, stroke = 0.5,
+    #         color = "grey99", alpha = 0.8) +
+    # geom_sf(data = st_occs, shape = 20, size = 1.2, stroke = 0.3,
+    #         color = "grey20", alpha = 0.8) +
+    ggspatial::annotation_scale(location = "br",
+                                width_hint = 0.25,
+                                style = "ticks", line_col = "gray20",
+                                text_col = "gray20") +
+    labs(x = NULL, y = NULL, title = title, subtitle = subtitle) +
+    theme_minimal(base_size = 10, base_family = "Times New Roman") +
+    theme(
+      panel.background = element_rect(fill = "white", color = NA),
+      legend.position = "right",
+      panel.border = element_rect(color = "grey60", fill = NA, linewidth = 0.5)
+    )
+  
+  p_ca <- ggplot() +
+    tidyterra::geom_spatraster(data = modca / 1000, interpolate = FALSE) +
+    geom_sf(data = ca, fill = NA, color = "grey60", linewidth = 0.2) +
+    scale_fill_viridis_c(option = "H",
+                         name = "Suitability", na.value = NA,
+                         alpha = 0.8, direction = -1) +
+    
+    # geom_sf(data = st_intersection(st_occs, ca), shape = 20, size = 1.5, stroke = 0.5,
+    #         color = "grey99", alpha = 0.8) +
+    # geom_sf(data = st_intersection(st_occs, ca), shape = 20, size = 1.2, stroke = 0.3,
+    #         color = "grey20", alpha = 0.8) +
+    ggspatial::annotation_scale(location = "bl",
+                                width_hint = 0.25,
+                                style = "ticks", line_col = "gray20",
+                                text_col = "gray20") +
+    labs(x = NULL, y = NULL, title = paste(title, "(California)"),
+         subtitle = subtitle) +
+    theme_minimal(base_size = 10, base_family = "Times New Roman") +
+    theme(
+      panel.background = element_rect(fill = "white", color = NA),
+      legend.position = "right",
+      panel.border = element_rect(color = "grey60", fill = NA, linewidth = 0.5)
+    )
+  
+  # Paired layout; collect legend on the right
+  (p_na + p_ca) + plot_layout(guides = "collect")
+}
+
+```
+
+# Models for *Osmia lignaria* and its plant resources
+
+This appendix presents the full set of Species Distribution Models (SDMs) generated for *Osmia lignaria* and its plant resources in California. Results are organized by period, SSP, and GCM. Methodological details are provided in the main text. Models were built with an ensemble approach, selecting algorithms based on AUC and TSS.
+
+## I. *Osmia lignaria* models
+
+### 1. Ensemble Model Performance and Statistics
+The table summarizes the runs of ensemble components and performance for *O. lignaria*. The AUC reflects discrimination ability; TSS balances sensitivity and specificity; Kappa represents the balanced accuracy.
+
+```{r osli, include=T}
+tab_metrics <- read_csv("outputs/csv/tuning_cv_records_auc_gated.csv")
+
+ol_perf <- tab_metrics %>%
+  select(-full.name) %>% 
+  select(PA, algo, run, ROC, TSS, KAPPA) %>%
+  arrange(PA, algo, run) %>% 
+  rename(`Pseudo-Absences` = PA, 
+         Algorithm = algo,
+         AUC = ROC,
+         Run = run) %>%
+  mutate(Run = str_remove(Run, 'RUN')) %>% 
+  mutate(AUC = fmt_num(AUC, 3),
+         TSS = fmt_num(TSS, 3), 
+         KAPPA = fmt_num(KAPPA, 3)) 
+
+ft_nice(ol_perf, "Table 1. Ensemble model performance metrics for *O. lignaria*.") %>% 
+  footnote(i=2,j=1, value= as_paragraph("PA1 = 1000; PA2 = 2000; PA3=6000; PA4=1000"),
+           part='header')
+
+```
+
+### 1. Ensemble Model Performance and Statistics
+
+Figures below show projected suitability for *O. lignaria* by period, SSP, and GCM.
+
+```{r projections-by-period, eval=T,results='asis', fig.width=10, fig.height=6, message=FALSE, warning=FALSE}
+library(terra)
+library(tidyterra)
+library(patchwork)
+library(glue)
+library(dplyr)
+library(sf)
+# ---- Load data ----
+# Target group (must include presences & background class column)
+tg_os <- readr::read_csv("inputs/records/pres_abs_oslig_target_group.csv",
+                         show_col_types = FALSE)
+
+# Presences to sf (EPSG:4326 assumed in CSV)
+st_occs <- st_as_sf(tg_os, coords = c("lon", "lat"), crs = 4326)%>%
+  filter(class != "background")
+
+# World basemap via rnaturalearth (land polygons)
+wrld_org <- rnaturalearth::ne_states(country = 'united states of america', 
+                                     returnclass = "sf")
+
+ca <- wrld_org %>% filter(name_en == 'California')
+
+prjfils <- expand_grid(
+  period = c('2015-2044', 
+             '2045-2074', 
+             '2075-2100'), 
+  ssp = c('ssp245', 'ssp370', 'ssp585'), 
+  gcm = c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")) %>% 
+  arrange(ssp, gcm) %>% 
+  mutate(path = str_c('outputs/models/projections/', 
+                      gcm, '_', ssp, '_', period, '_EMmean.tif')) %>% 
+  split(.$period)
+
+mod <- rast('outputs/models/projections/CNRM-ESM2-1_ssp245_2015-2044_EMmean.tif')
+wrld <- st_crop(wrld_org, mod)
+
+for (per in names(prjfils)) {
+  # per = names(prjfils)[1]
+  # Period subheading in the document
+  cat("#### ", per, "\n\n", sep = "")
+  
+  df <- prjfils[[per]] %>% arrange(ssp, gcm)
+  
+  dfssp <- df %>% split(df$ssp)
+  
+  # Iterate by SSP (keeps your grouping nice in the appendix)
+  dfssp %>% purrr::walk(\(grp) {
+    # grp= dfssp$ssp245
+    
+    ssp_val <- grp$ssp[1]
+    cat("##### ", toupper(ssp_val), "\n\n", sep = "")
+    
+    # One paired plot per GCM
+    for (i in seq_len(nrow(grp))) {
+      # i =1
+      gcm_i  <- grp$gcm[i]
+      path_i <- grp$path[i]
+      
+      title_i    <- glue("{gcm_i} — {toupper(ssp_val)}")
+      subtitle_i <- glue("Period: {per} | Ensemble: EMmean")
+      
+      plt <- make_pair_plot(
+        r_path = path_i, ca = ca, wrld = wrld,
+        title = title_i, subtitle = subtitle_i
+      )
+      
+      if (!is.null(plt)) print(plt)
+      cat("\n\n")
+    }
+    
+    cat("\n\n")
+  })
+  
+  cat("\n\n") # small spacer between periods
+}
+```
+
+## II. Native Plant resources models
+
+For native plant species that are used as resources by *O. lignaria*, we developed a single algorithm approach based on MaxEnt v. 3.4.1, in which models were fine tuned and filtered to select the best models, at a per species basis.
+
+### 1. Model Performance and Statistics
+
+The table summarizes the settings and performance metrics of models for all native plant resources used by *O. lignaria*. 
+
+```{r npr, include=T, eval=T}
+tab_metrics2 <- read_csv("outputs/final_maxent/csv/final_models_metrics.csv")
+# colnames(tab_metrics)
+ol_perf2 <- tab_metrics2 %>%
+  rename(`Pseudo-Absences` = npseu,
+         Features = fc, 
+         RM = rm, 
+         Presences = n_pres) %>% 
+  mutate(across(auc_train:thr_p10, fmt_num)) %>% 
+  select(species:thr_p10)
+
+flextable(ol_perf2) %>% 
+  italic(j = "species", italic = TRUE, part = "body") %>% 
+  autofit()
+
+# ft_nice(ol_perf2, cap = "Table 2. MaxEnt model performance metrics for native plant resources used by *O. lignaria*.")
+
+```
+### 2. Potential distribution change in California
+
+The table summarizes the changes in area from current to each period and ssp for each species. The change in area is calculated from the thresholded models with the 10th percentile value of training presence and calculated for California. 
+
+```{r area-npr, results='asis', echo=FALSE, message=FALSE, warning=FALSE}
+
+print_areas <- function(x){ 
+  x %>% 
+    select(species, current_area, period, perc_change) %>%
+    tidyr::pivot_wider(names_from = period, values_from = perc_change) %>%
+    mutate(across(current_area:last_col(), ~ ifelse(is.na(.x), 0, .x))) %>% 
+    mutate(across(current_area:last_col(), ~ fmt_num(.x, d = 2))) %>% 
+    rename_with(~ stringr::str_remove(.x, "_.*")) %>% 
+    flextable( ) %>% 
+    flextable::align(j = unique(ol_perf3[[1]]$period), align = "center", part = "all") %>% 
+    colformat_char(j = unique(ol_perf3[[1]]$period), suffix = " %", 
+                   na_str = "—", nan_str ="—" ) %>% 
+    italic(j = "species", italic = TRUE, part = "body") %>% 
+    autofit()
+}
+tab_metrics3 <- readr::read_csv("outputs/final_maxent/csv/final_models_metrics.csv")
+
+ol_perf3 <- tab_metrics3 %>%
+  select(species, current_area:last_col()) %>%
+  pivot_longer(cols = -(species:current_area), names_to = "name", values_to = "value") %>%
+  mutate(ssp = str_extract(name, "ssp\\d+"),
+         period = str_remove(name, "_ssp.*"),
+         # % change: (future - current) / current * 100
+         perc_change = 100 * (value - current_area) / current_area
+  ) %>%
+  split(.$ssp)
+
+cat("#### Area changes for ", toupper(names(ol_perf3)[1]), "\n\n", sep = "")
+ol_perf3[[1]] %>% print_areas()
+
+cat("\n\n")
+cat("#### Area changes for ", toupper(names(ol_perf3)[2]), "\n\n", sep = "")
+ol_perf3[[2]] %>% print_areas()
+
+cat("\n\n")
+cat("#### Area changes for ", toupper(names(ol_perf3)[3]), "\n\n", sep = "")
+ol_perf3[[3]] %>% print_areas()
+
+cat("\n\n")
+
+
+```
