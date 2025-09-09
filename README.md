@@ -10,7 +10,7 @@ Pollinators like _Osmia lignaria_ are crucial for California’s ecosystems and 
 
 ## 📖 Project Description
 
-This repository hosts the code, data, and analyses for studying the effects of climate change on the wild solitary bee Osmia lignaria and its plant resources in California, as part of California’s Fifth Climate Change Assessment.
+This repository hosts the code of analyses for studying the effects of climate change on the wild solitary bee Osmia lignaria and its plant resources in California, as part of California’s Fifth Climate Change Assessment. The input data is not included as the volume is high. But all data is publicly available and reference in the main document and appendices with the respective dois (see citation). 
 
 We use species distribution modeling (SDM), climate projections (LOCA2), and ecological trait data to:
 
@@ -26,12 +26,14 @@ We use species distribution modeling (SDM), climate projections (LOCA2), and eco
 
 <pre>
 Osmia_lignaria_CalAdapt/
-├── inputs/
-├── outputs/
+├── Python/
 ├── R/
-├── docs/
-├── .github/
-└── README.md
+├── Apendix_II.Rmd
+├── LICENSE
+├── Osmia_lignaria_CalAdapt.Rproj
+├── README.md
+├── download_paralell.sh
+└── requerements.txt
 </pre>
 </details>   
 
