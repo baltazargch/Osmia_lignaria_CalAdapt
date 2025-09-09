@@ -2,27 +2,12 @@
 project_one <- function(projOL, bm_ens, mods_sgl, mods_ens,n.cores, 
                         path, gcm, ssp, period, names_rast, sel_vars, 
                         out_dir) {
-  
-  # ffff <- file_index[1,] %>%
-  #   select(path, gcm, ssp, period)
-  # 
-  # ffff$path
-  # 
+ 
   env <- rast(path)
   names(env) <- names_rast
   env <- env[[sel_vars]]                    # subset to selected vars
   env <- rotate(env)
   env <- project(env, "epsg:4326")
-  
-  
-  # proj <- BIOMOD_Projection(
-  #   bm.mod              = modOL,
-  #   models.chosen       = mods_sgl,
-  #   new.env             = env,
-  #   proj.name           = paste(ssp, period, gcm, sep = "_"),
-  #   build.clamping.mask = TRUE,
-  #   nb.cpu              = n.cores
-  # )
   
   ens <- BIOMOD_EnsembleForecasting(
     bm.em         = bm_ens,

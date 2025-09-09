@@ -317,17 +317,14 @@ ens_projOL <- BIOMOD_EnsembleForecasting(
 ou <- unwrap(ens_projOL@proj.out@val)
 terra::writeRaster(ou, "outputs/models/NA_osli_current_ensemble.tif", overwrite = TRUE)
 
-# California 3 km stack (provide your own 3-km raster)
+# California stack (provide your own 3-km raster)
 models <- c("INM-CM5-0", "EC-Earth3-Veg", "MIROC6", "CNRM-ESM2-1")
 
-periods <- c('2021-2040', 
-             '2041-2060', 
-             '2061-2080', 
-             '2081-2100')
+periods <- c('1950-2014', '2015-2044', '2045-2074', '2075-2100')
 
 ssp <- c('ssp245', 'ssp370', 'ssp585')
 
-all_bio_files_ca <- list.files('outputs/bioclim_vars/', '.tif$', 
+all_bio_files_ca <- list.files('outputs/NA_bioclim_vars', '.tif$', 
                                full.names = T)
 
 pat <- "biovars[_-](\\d{4}[-_]\\d{4})[_-](ssp245|ssp370|ssp585)[_-](.+)\\.tif$"
@@ -342,7 +339,7 @@ file_index <- tibble(path = all_bio_files_ca) %>%
   arrange(ssp, period, gcm)
 
 # ---- Output dir --------------------------------------------------------------
-out_dir <- "outputs/models/ca_projections"
+out_dir <- "outputs/models/projections"
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 
 source('R/udf_project_ca_ensemble.R')
@@ -355,8 +352,8 @@ proj_tbl <- file_index %>%
 
 write_csv(proj_tbl, 'outputs/models/projection_table.csv')
 
-dir.create('outputs/models/ca_projections/means')
-dir.create('outputs/models/ca_projections/medians')
+dir.create('outputs/models/projections/means')
+dir.create('outputs/models/projections/medians')
 
 # ---- Average across GCMs per (ssp, period) ----------------------------------
 mean_tbl <- proj_tbl %>%
@@ -413,35 +410,6 @@ p_na <- ggplot() +
 
 ggsave("figures/fig_sdm_osli_ens_current_NA.png", p_na, width = 8, height = 6, dpi = 400)
 
-# Clip occurrences to CA extent for plotting
-ouCA_ext <- as.polygons(ext(ouCA)) %>% st_as_sf() %>% st_set_crs(4326)
-
-p_ca <- ggplot() +
-  tidyterra::geom_spatraster(data = ouCA[[3]] / 1000) +
-  geom_sf(data = wrld %>% st_transform(4326) %>% st_intersection(st_as_sf(terra::as.polygons(ext(ouCA), crs = "epsg:4326"))),
-          fill = NA, color = "grey60", linewidth = 0.2) +
-  scale_fill_viridis_c(option = "H", name = "Suitability", direction = -1, na.value = NA, alpha = 0.9) +
-  geom_sf(data = st_occs %>% st_intersection(ouCA_ext),
-          shape = 20, size = 2.5, stroke = 0.5, 
-          color = "grey99", alpha = 0.8) +
-  geom_sf(data = st_occs %>% st_intersection(ouCA_ext),
-          shape = 20, size = 2.2, stroke = 0.3, 
-          color = "grey20", alpha = 0.8) +
-  coord_sf(expand = FALSE) +
-  ggspatial::annotation_scale(location = "bl", 
-                              width_hint = 0.25,
-                              style = "ticks", line_col="gray20", 
-                              text_col = "gray20") +
-  labs(x = NULL, y = NULL) +
-  theme_minimal(base_size = 10) +
-  theme(text = element_text(family = 'sans'),
-        panel.background = element_rect(fill='white'),
-        legend.position = "right",
-        panel.border = element_rect(color = "grey60", fill = NA, linewidth = 0.5))
-p_ca
-
-ggsave("figures/fig_sdm_osli_ens_current_CA.png", p_ca, width = 7.5, height = 9, dpi = 500)
-
 # =====================================================================
 #              EXTRA: per-PA-size metrics (AUC gate → TSS)
 # =====================================================================
@@ -464,8 +432,4 @@ pa_perf <- ev_df %>%
   arrange(algo, desc(TSS_median), desc(ROC_median))
 
 readr::write_csv(pa_perf, "outputs/csv/perf_by_PA_size_auc_gated.csv")
-
-# Project to future climates for California
-
-fut_fls <- list.files('outputs/bioclim_vars/') 
 
