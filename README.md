@@ -1,6 +1,6 @@
 <img width="1536" height="1024" alt="ChatGPT Image Sep 9, 2025, 03_12_04 PM" src="https://github.com/user-attachments/assets/6818e589-fb93-45ce-be07-f7f2a2b10ae0" />
 
-# 🌿🐝 Osmia lignaria & Climate Change in California
+# 🌿🐝 _Osmia lignaria_ & Climate Change in California
 
 Modeling the future of a wild solitary bee and its native plant resources
 
