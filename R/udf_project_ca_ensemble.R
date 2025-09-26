@@ -26,13 +26,13 @@ project_one <- function(projOL, bm_ens, mods_sgl, mods_ens,n.cores,
   idx <- grep("EMmean", names(r), fixed = TRUE)
   r_em <- if (length(idx)) r[[idx[1]]] else r[[1]]
   
-  out_path <- file.path(out_dir, glue("{gcm}_{ssp}_{period}_EMmean.tif"))
+  out_path <- file.path(out_dir, glue("{bm_ens@sp.name}_{gcm}_{ssp}_{period}_EMmean.tif"))
   writeRaster(r_em, out_path, overwrite = TRUE)
   
   ibin <- grep('TSSbin', bin)
   rbin <- rast(bin[ibin])
   writeRaster(rbin, 
-              file.path(out_dir, glue("TSSbinay_{gcm}_{ssp}_{period}_EMmean.tif")), 
+              file.path(out_dir, glue("{bm_ens@sp.name}_TSSbinay_{gcm}_{ssp}_{period}_EMmean.tif")), 
               overwrite = TRUE)
   
   tibble(gcm = gcm, ssp = ssp, period = period, path = out_path)

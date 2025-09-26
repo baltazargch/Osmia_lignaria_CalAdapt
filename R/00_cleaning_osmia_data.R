@@ -15,9 +15,6 @@ db <- fread('/mnt/4TB/Databases/GBIF/Megachilidae/0037393-240906103802322.csv')
 ne_pol <- read_sf('/mnt/4TB/GIS/Vectors/NaturalEarth/10m_cultural/ne_10m_admin_0_countries.shp')
 colnames(db)
 
-
-table(db$year)
-
 db_ol <- db %>% filter(species == 'Osmia lignaria') %>% filter(between(year, 1950,2015))
 db_ol_cleaned <- clean_coordinates(db_ol, country_ref = ne_pol, 
                                    tests = c("capitals", "centroids", "equal", "gbif", 
